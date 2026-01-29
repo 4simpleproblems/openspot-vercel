@@ -1,7 +1,7 @@
 // api/proxy.js
 
 // Using require for node-fetch as Vercel's Node.js environment might not have fetch globally
-// const fetch = require('node-fetch');
+const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
     const { searchParams } = new URL(req.url, `http://${req.headers.host}`);
