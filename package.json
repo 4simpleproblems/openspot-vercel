@@ -1,0 +1,16 @@
+{
+  "name": "velium-pro",
+  "version": "1.0.0",
+  "description": "Velium Pro Music App",
+  "main": "app.js",
+  "scripts": {
+    "build:css": "tailwindcss -i ./input.css -o ./style.css --watch",
+    "dev": "vercel dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "tailwindcss": "^3.4.3"
+  }
+}
