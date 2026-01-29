@@ -4,8 +4,7 @@
   "description": "Velium Pro Music App",
   "main": "app.js",
   "scripts": {
-    "build:css": "tailwindcss -i ./input.css -o ./style.css --watch",
-    "dev": "vercel dev"
+    "build:css": "tailwindcss -i ./input.css -o ./style.css --watch"
   },
   "keywords": [],
   "author": "",
