@@ -1,6 +1,4 @@
 // api/proxy.js
-
-// Using require for node-fetch as Vercel's Node.js environment might not have fetch globally
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
@@ -9,36 +7,38 @@ module.exports = async (req, res) => {
     const query = searchParams.get('q');
     const videoId = searchParams.get('videoId');
 
-    // Use a more reliable piped instance
-    const API_BASE_URL = 'https://pipedapi.in.projectsegfau.lt';
+    const API_BASE_URL = 'https://yewtu.be';
 
     let targetUrl;
 
     if (endpoint === 'search' && query) {
-        targetUrl = `${API_BASE_URL}/search?q=${encodeURIComponent(query)}&filter=music`;
-    } else if (endpoint === 'stream' && videoId) {
-        targetUrl = `${API_BASE_URL}/streams/${videoId}`;
+        targetUrl = `${API_BASE_URL}/api/v1/search?q=${encodeURIComponent(query)}&type=video`;
+    } else if (endpoint === 'video' && videoId) {
+        targetUrl = `${API_BASE_URL}/api/v1/videos/${videoId}`;
     } else {
-        return res.status(400).json({ error: 'Invalid request. Provide "endpoint" and relevant parameters (q or videoId).' });
+        return res.status(400).json({ error: 'Invalid request. Provide "endpoint" and relevant parameters.' });
     }
 
     try {
         const apiResponse = await fetch(targetUrl, {
-             headers: {
-                'Origin': 'https://piped.video', // Act like a known client
-                'Accept': 'application/json'
-            }
+            headers: { 'Accept': 'application/json' }
         });
 
         if (!apiResponse.ok) {
             const errorText = await apiResponse.text();
-            console.error(`Piped API Error: ${apiResponse.status} ${errorText}`);
+            console.error(`API Error: ${apiResponse.status} ${errorText}`);
             return res.status(apiResponse.status).send(errorText);
         }
 
+        const contentType = apiResponse.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const textData = await apiResponse.text();
+            console.error("API returned non-JSON response:", textData);
+            return res.status(502).json({ error: 'Bad Gateway: API returned an invalid response format.' });
+        }
+        
         const data = await apiResponse.json();
 
-        // Set CORS headers for the response to the client
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

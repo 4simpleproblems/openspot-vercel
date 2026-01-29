@@ -27,10 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(proxyUrl);
             if (!response.ok) {
-                throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                throw new Error(`API Error: ${response.status} ${await response.text()}`);
             }
             const data = await response.json();
-            displayResults(data.items); // Piped API returns results in 'items'
+            displayResults(data); // Invidious API returns a direct array
         } catch (error) {
             console.error('Error searching:', error);
             resultsContainer.innerHTML = `<p class="text-red-500">Error fetching search results. The API proxy might be down or blocking requests. Please try again later.</p>`;
@@ -43,16 +43,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        currentQueue = items.filter(item => item.type === 'stream'); // Filter for playable streams
-        resultsContainer.innerHTML = currentQueue.map((item, index) => `
-            <div class="result-item" data-index="${index}">
-                <img src="${item.thumbnail}" alt="Thumbnail">
+        currentQueue = items;
+        resultsContainer.innerHTML = currentQueue.map((item, index) => {
+            const thumbnail = item.videoThumbnails?.find(t => t.quality === 'medium')?.url || '';
+            return `
+            <div class="result-item" data-index="${index}" data-video-id="${item.videoId}">
+                <img src="${thumbnail}" alt="Thumbnail">
                 <div class="result-item-info">
                     <h3>${item.title}</h3>
-                    <p>${item.uploaderName}</p>
+                    <p>${item.author}</p>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     }
 
     async function playTrack(index) {
@@ -64,36 +66,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentQueueIndex = index;
         const track = currentQueue[index];
-        const videoId = track.url.split('v=')[1];
         
-        const streamUrl = await getStreamUrl(videoId);
+        const streamUrl = await getStreamUrl(track.videoId);
 
         if (streamUrl) {
             player.style.display = 'flex';
-            playerArtwork.src = track.thumbnail;
+            const thumbnail = track.videoThumbnails?.find(t => t.quality === 'medium')?.url || '';
+            playerArtwork.src = thumbnail;
             playerTitle.textContent = track.title;
-            playerArtist.textContent = track.uploaderName;
+            playerArtist.textContent = track.author;
 
             audioPlayer.src = streamUrl;
             audioPlayer.play();
             playPauseButton.innerHTML = '<i class="fas fa-pause-circle fa-3x"></i>';
         } else {
-            console.error('Could not get stream URL for ' + videoId);
-            playTrack(currentQueueIndex + 1); // Try the next track
+            console.error('Could not get stream URL for ' + track.videoId);
+            playTrack(currentQueueIndex + 1);
         }
     }
 
     async function getStreamUrl(videoId) {
         try {
-            const proxyUrl = `/api/proxy?endpoint=stream&videoId=${videoId}`;
+            const proxyUrl = `/api/proxy?endpoint=video&videoId=${videoId}`;
             const response = await fetch(proxyUrl);
             if (!response.ok) {
                 throw new Error('Failed to get video info');
             }
             const data = await response.json();
             
-            const audioStream = data.audioStreams
-                .filter(s => s.mimeType.includes('mp4')) // Prefer M4A for broader compatibility
+            const audioStream = data.adaptiveFormats
+                .filter(s => s.type.includes('audio/webm') || s.type.includes('audio/mp4'))
                 .sort((a, b) => b.bitrate - a.bitrate)[0];
             
             return audioStream ? audioStream.url : null;
@@ -115,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function formatTime(seconds) {
+        if (isNaN(seconds)) return '0:00';
         const minutes = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
